@@ -1,0 +1,106 @@
+# Enable /metrics endpoint
+metrics: true
+
+# Storage configuration
+# Ref: https://github.com/TwiN/gatus/tree/master?tab=readme-ov-file#storage
+storage:
+  type: memory
+
+# UI configuration
+# Ref: https://github.com/TwiN/gatus/tree/master?tab=readme-ov-file#configuration
+ui:
+  header: Service Endpoints
+  logo: https://d343x6qscsp61h.cloudfront.net/sites/2/20240522105743/author_bio_stackadapt.webp?w=128
+  link: http://gatus.observability.stackadapt.ecs/
+
+# Endpoints configuration
+# Ref: https://github.com/TwiN/gatus/tree/master?tab=readme-ov-file#endpoints
+endpoints:
+  - name: Grafana
+    group: monitoring
+    url: http://grafana:3000/api/health
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  # - name: Mimir
+  #   group: monitoring
+  #   url: http://mimir:9009/services
+  #   method: GET
+  #   interval: 30s
+  #   conditions:
+  #     - "[STATUS] <= 299"
+  #     - "[RESPONSE_TIME] <= 200"
+  - name: Loki
+    group: monitoring
+    url: http://loki:3100/ready
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  - name: Tempo
+    group: monitoring
+    url: http://tempo:3200/metrics
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  - name: Pyroscope
+    group: monitoring
+    url: http://pyroscope:4040/api/v1/status/config
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  - name: Alloy
+    group: monitoring
+    url: http://alloy:12345/-/healthy
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  - name: AlertManager
+    group: monitoring
+    url: http://alertmanager:9093/-/healthy
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  - name: VMInsert
+    group: monitoring
+    url: http://vminsert:8480/health
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  - name: VMSelect
+    group: monitoring
+    url: http://vmselect:8481/health
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  - name: VMAlert
+    group: monitoring
+    url: http://vmalert:8880/health
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
+  - name: VMStorage
+    group: monitoring
+    url: http://vmstorage:8482/health
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"

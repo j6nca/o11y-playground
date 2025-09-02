@@ -1,0 +1,129 @@
+{
+  "annotations":
+    {
+      "list":
+        [
+          {
+            "builtIn": 1,
+            "datasource": { "type": "datasource", "uid": "prometheus" },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard",
+          },
+        ],
+    },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "liveNow": false,
+  "panels":
+    [
+      {
+        "datasource": { "type": "datasource", "uid": "prometheus" },
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "id": 1,
+        "options":
+          {
+            "colorMode": "palette-classic",
+            "combine":
+              {
+                "thresholds": [],
+                "tooltipTemplate": "Others",
+                "unit": "short",
+              },
+            "legend":
+              { "calcs": [], "displayMode": "list", "placement": "right" },
+            "orientation": "auto",
+            "showValue": "auto",
+            "textMode": "name",
+            "tooltip": { "mode": "single", "sort": "none" },
+          },
+        "targets":
+          [
+            {
+              "datasource": { "type": "datasource", "uid": "prometheus" },
+              "exemplar": true,
+              "expr": "rate(go_app_http_requests_total[1m])",
+              "legendFormat": "{{path}}",
+              "range": true,
+              "refId": "A",
+            },
+          ],
+        "title": "HTTP Requests Rate (1m)",
+        "type": "barchart",
+      },
+      {
+        "datasource": { "type": "datasource", "uid": "prometheus" },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "id": 2,
+        "options":
+          {
+            "graph":
+              { "showBars": false, "showLines": true, "showPoints": false },
+            "legend":
+              {
+                "calcs": ["mean", "min", "max"],
+                "displayMode": "table",
+                "placement": "bottom",
+              },
+            "tooltip": { "mode": "single", "sort": "none" },
+          },
+        "targets":
+          [
+            {
+              "datasource": { "type": "datasource", "uid": "prometheus" },
+              "exemplar": false,
+              "expr": "histogram_quantile(0.99, sum(rate(go_app_http_request_duration_seconds_bucket[5m])) by (le, path))",
+              "hide": false,
+              "legendFormat": "{{path}}",
+              "range": true,
+              "refId": "A",
+            },
+          ],
+        "title": "Request Latency (99th Percentile)",
+        "type": "timeseries",
+      },
+      {
+        "datasource": { "type": "datasource", "uid": "prometheus" },
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+        "id": 3,
+        "options":
+          {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions":
+              { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "text": { "valueSize": 0 },
+          },
+        "targets":
+          [
+            {
+              "datasource": { "type": "datasource", "uid": "prometheus" },
+              "exemplar": false,
+              "expr": "go_app_work_level",
+              "legendFormat": "Work Level",
+              "range": true,
+              "refId": "A",
+            },
+          ],
+        "title": "Current Work Level",
+        "type": "stat",
+      },
+    ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["observability", "go"],
+  "templating": { "list": [] },
+  "time": { "from": "now-5m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Go App Observability Dashboard",
+  "uid": "go-app-observability",
+  "version": 1,
+}
