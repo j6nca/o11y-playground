@@ -1,5 +1,8 @@
 # monitoring-workshop-2509
 
+> [!warning]
+> This project is still under frequent development and iteration, it is recommended before starting to run `git pull` to ensure code and configurations are up-to-date!
+
 This project contains files to spin up a standalone environment, to get folks familiar with application monitoring.
 
 ## Requirements
@@ -63,12 +66,8 @@ $ docker-compose down
 
 ### Workshop Setup
 
+If internet permits, please run `git pull` prior to the workshop just to ensure files are up-to-date.
+
 ```
 docker-compose up -d --wait
-```
-
-## Hitting app /metrics endpoint
-
-```
-curl localhost:$APP_PORT/metrics
 ```

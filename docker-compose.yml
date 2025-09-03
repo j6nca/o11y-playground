@@ -17,11 +17,6 @@ services:
       - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
     depends_on:
       - alloy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   example-app-2:
     build:
@@ -41,11 +36,6 @@ services:
     depends_on:
       - alloy
       - example-app
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # Add alertmanager for alert routing (so we can see alerts from vmalert)
   alertmanager:
@@ -155,9 +145,14 @@ services:
     #   - pyroscope
     #   - vmalert
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -o /dev/null -fs 'http://127.0.0.1:3000/api/health' || exit 1",
+        ]
+      start_period: 15s
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
 
   # The Loki service stores logs sent to it, and takes queries from Grafana

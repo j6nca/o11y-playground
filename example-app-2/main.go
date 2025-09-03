@@ -96,7 +96,7 @@ func main() {
 			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)
 
 			// Make a request to the first Go service, propagating the trace context
-			req, _ := http.NewRequestWithContext(ctx, "GET", config.exampleServer+"/service", nil)
+			req, _ := http.NewRequestWithContext(ctx, "GET", config.exampleServer, nil)
 			resp, err := client.Do(req)
 			if err != nil {
 				slog.ErrorContext(ctx, "Failed to call Go app service", "error", err)
