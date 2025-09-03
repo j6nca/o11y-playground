@@ -5,6 +5,8 @@ services:
     build:
       context: ./example-app
       dockerfile: Dockerfile
+    # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
+    # image: ghcr.io/j6nca/o11y-playground-example-api:latest
     container_name: example-app
     ports:
       - "8080:8080"
