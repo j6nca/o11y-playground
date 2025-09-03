@@ -124,6 +124,7 @@ func main() {
 
 func setupTracer(config Config) func() {
 	ctx := context.Background()
+	slog.Info("Setting up traces with config", "config", config.tempoServer)
 	// Tempo gRPC endpoint from docker-compose.yml
 	conn, err := grpc.DialContext(ctx, config.tempoServer,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -163,6 +164,7 @@ func setupTracer(config Config) func() {
 }
 
 func setupProfiler(config Config) {
+	slog.Info("Setting up profiler with config", "config", config.pyroscopeServer)
 	_, err := pyroscope.Start(pyroscope.Config{
 		ApplicationName: config.serviceName,
 		ServerAddress:   config.pyroscopeServer, // Pyroscope address from docker-compose.yml
