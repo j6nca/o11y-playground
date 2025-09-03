@@ -10,8 +10,9 @@ services:
       - "8080:8080"
     environment:
       - OTEL_SERVICE_NAME=example-app
-      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=tempo:4317
-      - PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
+      # Sending example-app traces and profiling to alloy (OTEL collector)
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
+      - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
       interval: 10s
@@ -166,6 +167,8 @@ services:
       - "55679:55679"
       - "4317:4317"
       - "4318:4318"
+    expose:
+      - "4040"
     volumes:
       - "./alloy/config.alloy:/etc/alloy/config.alloy"
       - "./alloy/endpoints.json:/etc/alloy/endpoints.json"

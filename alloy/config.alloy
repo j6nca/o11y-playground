@@ -147,6 +147,35 @@ loki.write "mythical" {
     }
 }
 
+// The Loki processor for Faro frontend logs
+loki.process "faro" {
+    // Add labels to identify frontend logs
+    stage.static_labels {
+        values = {
+            job = "mythical-frontend",
+            group = "mythical",
+            service_name = "mythical-frontend",
+        }
+    }
+
+    // Forward to the Faro Loki writer for output
+    forward_to = [loki.write.mythical.receiver]
+}
+
+
+/*loki.write "faro" {
+    // Output the Faro logs to the local Loki instance
+    endpoint {
+        url = json_path(local.file.endpoints.content, ".logs.url")[0]
+
+        // The basic auth credentials for the Loki instance
+        basic_auth {
+            username = json_path(local.file.endpoints.content, ".logs.basicAuth.username")[0]
+            password = json_path(local.file.endpoints.content, ".logs.basicAuth.password")[0]
+        }
+    }
+}*/
+
 ///////////////////////////////////////////////////////////////////////////////
 // Tracing
 
@@ -521,7 +550,7 @@ otelcol.exporter.prometheus "tracemetrics" {
     add_metric_suffixes = json_path(local.file.endpoints.content, ".add_spanmetric_suffixes")[0]
 
     // Forward to our local Prometheus remote writer which will send the metrics to Mimir.
-    forward_to = [prometheus.remote_write.mimir.receiver]
+    forward_to = [prometheus.remote_write.metrics.receiver]
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -104,3 +104,12 @@ endpoints:
     conditions:
       - "[STATUS] <= 299"
       - "[RESPONSE_TIME] <= 200"
+
+  - name: example-app
+    group: app
+    url: http://example-app:8080/metrics
+    method: GET
+    interval: 30s
+    conditions:
+      - "[STATUS] <= 299"
+      - "[RESPONSE_TIME] <= 200"
