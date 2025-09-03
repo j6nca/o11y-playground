@@ -12,6 +12,8 @@ docker-compose up -d
 docker-compose ps
 ```
 
+Can verify services are all healthy and running at `localhost:8888` (gatus)
+
 ## Hitting app /metrics endpoint
 
 ```

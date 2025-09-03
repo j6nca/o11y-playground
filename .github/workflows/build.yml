@@ -10,7 +10,7 @@ on:
 # Defines two custom environment variables for the workflow. These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: example-app
+  IMAGE_NAME: o11y-playground-example-api
   COMPONENT: "example-app"
 
 defaults:
