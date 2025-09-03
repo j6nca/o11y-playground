@@ -1,12 +1,12 @@
 name: workshop
 services:
-  # The Go application that we will observe
+  # The example Go applicationsthat we will observe
   example-app:
     build:
       context: ./example-app
       dockerfile: Dockerfile
     # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
-    # image: ghcr.io/j6nca/o11y-playground-example-api:latest
+    # image: ghcr.io/j6nca/o11y-playground-example-app:main
     container_name: example-app
     ports:
       - "8080:8080"
@@ -15,8 +15,34 @@ services:
       # Sending example-app traces and profiling to alloy (OTEL collector)
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
       - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
+    depends_on:
+      - alloy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  example-app-2:
+    build:
+      context: ./example-app-2
+      dockerfile: Dockerfile
+    # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
+    # image: ghcr.io/j6nca/o11y-playground-example-app-2:main
+    container_name: example-app-2
+    ports:
+      - "8081:8081"
+    environment:
+      - OTEL_SERVICE_NAME=example-app-2
+      # Sending example-app traces and profiling to alloy (OTEL collector)
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
+      - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
+      - EXAMPLE_SERVER_ADDRESS=http://example-app:8080
+    depends_on:
+      - alloy
+      - example-app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/metrics"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,6 +50,7 @@ services:
   # Add alertmanager for alert routing (so we can see alerts from vmalert)
   alertmanager:
     image: prom/alertmanager:v0.28.1
+    container_name: alertmanager
     volumes:
       - ./alertmanager/config.yml:/config/alertmanager.yml
     command:
@@ -35,6 +62,7 @@ services:
   # quick service health check overview for troubleshooting
   gatus:
     image: ghcr.io/twin/gatus:v5.22.0
+    container_name: gatus
     volumes:
       - ./gatus/config.yaml:/config/config.yaml
     ports:
@@ -44,6 +72,7 @@ services:
   # VictoriaMetrics cluster components
   vminsert:
     image: victoriametrics/vminsert:v1.125.0-cluster
+    container_name: vminsert
     command:
       - -replicationFactor=1
       - -storageNode=vmstorage:8400
@@ -54,6 +83,7 @@ services:
 
   vmselect:
     image: victoriametrics/vmselect:v1.125.0-cluster
+    container_name: vmselect
     command:
       - -storageNode=vmstorage:8401
     ports:
@@ -63,6 +93,7 @@ services:
 
   vmstorage:
     image: victoriametrics/vmstorage:v1.125.0-cluster
+    container_name: vmstorage
     command:
       - -retentionPeriod=1d
     ports:
@@ -74,6 +105,7 @@ services:
 
   # vmagent:
   #   image: victoriametrics/vmagent:v1.125.0
+  #   container_name: vmagent
   #   command:
   #     - vm-agent
   #     - -promscrape.config=/etc/victoriametrics/prometheus.yml
@@ -86,6 +118,7 @@ services:
   # VictoriaMetrics Alertmanager
   vmalert:
     image: victoriametrics/vmalert:v1.125.0
+    container_name: vmalert
     command:
       - -rule=/etc/vmalert/vmalert-rules.yml
       - -datasource.url=http://vmselect:8481/
@@ -103,6 +136,7 @@ services:
   # The Grafana dashboarding server.
   grafana:
     image: grafana/grafana:12.0.2
+    container_name: grafana
     volumes:
       - "./grafana/definitions:/var/lib/grafana/dashboards"
       - "./grafana/provisioning:/etc/grafana/provisioning"
@@ -130,6 +164,7 @@ services:
   # to visualise those logs.
   loki:
     image: grafana/loki:3.5.1
+    container_name: loki
     command:
       ["--pattern-ingester.enabled=true", "-config.file=/etc/loki/loki.yaml"]
     ports:
@@ -140,6 +175,7 @@ services:
   # Tempo for traces
   tempo:
     image: grafana/tempo:2.8.1
+    container_name: tempo
     ports:
       - "3200:3200"
       - "9411:9411"
@@ -152,6 +188,7 @@ services:
 
   pyroscope:
     image: grafana/pyroscope:1.13.5
+    container_name: pyroscope
     ports:
       - "4040:4040"
     command: ["server"]
@@ -161,6 +198,7 @@ services:
   # Includes Metrics, Logs, Traces and Profiles.
   alloy:
     image: grafana/alloy:v1.9.1
+    container_name: alloy
     ports:
       - "12350:12350"
       - "12345:12345"
@@ -190,5 +228,5 @@ services:
 
 networks:
   default:
-    name: observability-net
+    name: monitoring-workshop
     driver: bridge
