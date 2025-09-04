@@ -83,32 +83,6 @@ func main() {
 		tempoServer: os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"),
 	}
 
-	products := []Product{
-			{ID: 1, Name: "Mug"},
-			{ID: 2, Name: "Bowl"},
-			{ID: 3, Name: "Plate"},
-			{ID: 4, Name: "Fork"},
-			{ID: 5, Name: "Spoon"},
-			{ID: 6, Name: "Knife"},
-			{ID: 7, Name: "Cup"},
-			{ID: 8, Name: "Saucer"},
-			{ID: 9, Name: "Dish"},
-			{ID: 10, Name: "Glass"},
-	}
-
-	employees := []Employee{
-			{ID: 1, Name: "Jeff"},
-			{ID: 2, Name: "Benny"},
-			{ID: 3, Name: "Lisa"},
-			{ID: 4, Name: "Craig"},
-			{ID: 5, Name: "Greg"},
-			{ID: 6, Name: "Sheila"},
-			{ID: 7, Name: "Steven"},
-			{ID: 8, Name: "Kelly"},
-			{ID: 9, Name: "Dina"},
-			{ID: 10, Name: "Kevin"},
-	}
-
 	// Setup OpenTelemetry for tracing
 	shutdown := setupTracer(config)
 	defer shutdown()
@@ -123,7 +97,7 @@ func main() {
 	http.Handle("/", otelhttp.NewHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "root-handler")
+			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "example-api-handler")
 			defer span.End()
 
 			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)
@@ -139,7 +113,7 @@ func main() {
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", workDuration.Milliseconds())
 			fmt.Fprintf(w, "This is the kitchen store api. Work completed in %d ms.\n", workDuration.Milliseconds())
 		}),
-		"root-handler-span",
+		"example-api-handler-span",
 	))
 
 	// Path to demonstrate an error
@@ -160,19 +134,13 @@ func main() {
 
 			slog.InfoContext(ctx, "Received request on products path", "path", r.URL.Path)
 			start := time.Now()
-			go func() {
-				for {
-					cpuIntensiveWork(100000000) // Adjust iterations to control CPU load
-					time.Sleep(100 * time.Millisecond) // Add a small delay to avoid 100% CPU saturation
-				}
-			}()
+			products := getProducts()
 			duration := time.Since(start)
 			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
 			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
 
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
-			// fmt.Fprintf(w, "Hello, Observability! Work completed in %d ms.\n", workDuration.Milliseconds())
-
+			
 			jsonData, err := json.Marshal(products)
 			if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -192,12 +160,14 @@ func main() {
 			defer span.End()
 
 			slog.InfoContext(ctx, "Received request on employees path", "path", r.URL.Path)
-
+			start := time.Now()
+			employees := getEmployees()
+			duration := time.Since(start)
 			// For sake of this example, set latency to 0
 			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
-			requestLatency.WithLabelValues(r.URL.Path).Observe(0)
+			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
 
-			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", 0)
+			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
 			// fmt.Fprintf(w, "Hello, Observability! Work completed in %d ms.\n", workDuration.Milliseconds())
 
 			jsonData, err := json.Marshal(employees)
@@ -275,6 +245,43 @@ func setupProfiler(config Config) {
 	if err != nil {
 		slog.Error("Failed to start Pyroscope profiler:", "error", err)
 	}
+}
+
+func getEmployees() []Employee {
+	employees := []Employee{
+			{ID: 1, Name: "Jeff"},
+			{ID: 2, Name: "Benny"},
+			{ID: 3, Name: "Lisa"},
+			{ID: 4, Name: "Craig"},
+			{ID: 5, Name: "Greg"},
+			{ID: 6, Name: "Sheila"},
+			{ID: 7, Name: "Steven"},
+			{ID: 8, Name: "Kelly"},
+			{ID: 9, Name: "Dina"},
+			{ID: 10, Name: "Kevin"},
+	}
+	
+	return employees
+}
+
+func getProducts() []Product {
+	products := []Product{
+			{ID: 1, Name: "Mug"},
+			{ID: 2, Name: "Bowl"},
+			{ID: 3, Name: "Plate"},
+			{ID: 4, Name: "Fork"},
+			{ID: 5, Name: "Spoon"},
+			{ID: 6, Name: "Knife"},
+			{ID: 7, Name: "Cup"},
+			{ID: 8, Name: "Saucer"},
+			{ID: 9, Name: "Dish"},
+			{ID: 10, Name: "Glass"},
+	}
+
+	cpuIntensiveWork(100000000) // Adjust iterations to control CPU load
+	time.Sleep(100 * time.Millisecond) // Add a small delay to avoid 100% CPU saturation
+	
+	return products
 }
 
 // cpuIntensiveWork simulates CPU usage by performing a busy loop.

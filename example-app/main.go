@@ -21,6 +21,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+
 )
 
 var (
@@ -81,7 +83,7 @@ func main() {
 	setupProfiler(config)
 
 	// Logger setup for Loki
-	slog.Info("Starting Go application 2 ...")
+	slog.Info("Starting Kitchen store app ...")
 
 	// Create an HTTP client that automatically adds tracing headers
 	client := http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
@@ -90,7 +92,7 @@ func main() {
 	http.Handle("/", otelhttp.NewHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "go-app2-handler")
+			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "example-app-handler")
 			defer span.End()
 
 			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)

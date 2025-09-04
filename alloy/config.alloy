@@ -12,169 +12,56 @@ livedebugging {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Docker
+
+// Get docker container targets from docker daemon
+discovery.docker "containers" {
+    host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex = "/(.*)"
+    target_label = "service_name"
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Metrics scraping
 
-// Scrape Tempo, Mimir, Phlare and Loki
-// We use the prometheus.scrape component and give this a unique label.
-prometheus.scrape "mltpg_infra" {
-    // The targets array allows us to specify which service targets to scrape from.
-    // Define the address to scrape from, and add a 'group' and 'service' label for each target.
-    targets = [
-        //{"__address__" = "mimir:9009", group = "infrastructure", service = "mimir"},
-        {"__address__" = "gatus:8080", group = "infrastructure", service = "gatus"},
-        {"__address__" = "tempo:3200", group = "infrastructure", service = "tempo"},
-        {"__address__" = "loki:3100", group = "infrastructure", service = "loki"},
-        {"__address__" = "pyroscope:4040", group = "infrastructure", service = "pyroscope"},
-        {"__address__" = "grafana:3000", group = "infrastructure", service = "grafana"},
-    ]
-
-    // Scrape all of these services every 15 seconds.
-    scrape_interval = "15s"
-    // Send the metrics to the prometheus remote write receiver for exporting to Mimir.
-    forward_to = [prometheus.remote_write.metrics.receiver]
-    // The job name to add to the scraped metrics.
-    job_name = "mltpg_infra"
+prometheus.scrape "containers" {
+  targets = discovery.relabel.containers.output
+  forward_to = [prometheus.remote_write.metrics.receiver] // Replace with your remote write destination
+  scrape_interval = "15s"
 }
 
-// This component scrapes the Mythical application, defining unique prometheus labels.
-prometheus.scrape "example" {
-    // Scrape from the mythical requester and server services, and add them to the 'mythical' group with their service
-    // names.
-    targets = [
-        {"__address__" = "example-app:8081", group = "example", service = "example-api"},
-        {"__address__" = "example-api:8080", group = "example", service = "example-app"},
-    ]
-    // We need a scrape interval and timeout of 2s as we want reactive metric data.
-    scrape_interval = "2s"
-    scrape_timeout = "2s"
-    // Send the metrics to the prometheus remote write receiver for exporting to Mimir.
-    forward_to = [prometheus.remote_write.metrics.receiver]
-    // Attach the job name to the metrics.
-    job_name = "example"
-}
-
-// Scrape the local Alloy itself.
-prometheus.scrape "alloy" {
-    // Only one target, the Alloy, it's part of the 'infrastructure' group.
-    targets = [{"__address__" = "localhost:12345", group = "infrastructure", service = "alloy"}]
-    // Send the metrics to the prometheus remote write receiver for exporting to Mimir.
-    forward_to = [prometheus.remote_write.metrics.receiver]
-    // Attach job name to the metrics.
-    job_name = "alloy"
-}
-
-// The Alloy exports everything, using an empty block.
-prometheus.exporter.unix "default" {
-}
-
-// This component scrapes the Unix exporter metrics generated above.
-prometheus.scrape "unix" {
-    // Use the Unix prometheus exporter as the target.
-    targets = prometheus.exporter.unix.default.targets
-    // Send the metrics to the prometheus remote write receiver for exporting to Mimir.
-    forward_to = [prometheus.remote_write.metrics.receiver]
-    // Attach job name to the metrics.
-    job_name = "node_exporter"
-}
-
-// The prometheus.remote_write component defines an endpoint for remotely writing metrics to.
 prometheus.remote_write "metrics" {
-    // The endpoint is the metrics service.
-    endpoint {
-        url = json_path(local.file.endpoints.content, ".metrics.url")[0]
-
-        // Basic auth credentials. If the endpoint is not TLS, whilst sent, these will be ignored.
-        basic_auth {
-            username = json_path(local.file.endpoints.content, ".metrics.basicAuth.username")[0]
-            password = json_path(local.file.endpoints.content, ".metrics.basicAuth.password")[0]
-        }
-    }
+  endpoint {
+    url = "http://vminsert:8480/insert/0/prometheus/api/v1/write"
+  }
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Logging
 
-// The Loki receiver is used to ingest logs from the mythical application via Loki's HTTP REST API.
-loki.source.api "mythical" {
-    // Listen for Loki data on port 3100.
-    http {
-        listen_address = "0.0.0.0"
-        listen_port = "3100"
+loki.source.docker "containers" {
+    host = "unix:///var/run/docker.sock"
+    targets = discovery.relabel.containers.output
+    labels = {
+        "job" = "alloy",
+        "engine" = "docker",
     }
-
-    // Forward all received data to the Loki processor component.
-    forward_to = [loki.process.mythical.receiver]
+    forward_to = [loki.write.logs.receiver]
 }
 
-// The Loki processor allows us to accept a correctly formatted Loki log and to run a series of pipeline stages on it.
-// This particular example shows how to parse timestamp data within a logline and use it as the timestamp for the logline.
-// It essentially does nothing if the `TIMESHIFT` variable for the `mythical-requester` service is not set to `true` in
-// the relevant Docker Compose manifest.
-loki.process "mythical" {
-    // There are other stages that could easily extract the value from the logline (such as the logfmt stage), but this
-    // showcases a more complex manual regexp to extract the value into the map.
-    stage.regex {
-        expression=`^.*?loggedtime=(?P<loggedtime>\S+)`
-    }
-
-    // Use the timestamp stage to take the extracted value, now in the map, and use it as the timestamp for the logline.
-    // By doing so, you can ensure that logs that have reached Alloy at a later time than originally emitted are
-    // corrected to use the correct time, instead of the time they were received by Alloy.
-    // This stage shows an example of a user-defined timestamp format (note that the specific time the format is
-    // declared in is important for Alloy to understand the format correctly). We could also have used the RFC3339
-    // identifier in this case.
-    stage.timestamp {
-        source = "loggedtime"
-        format = "2006-01-02T15:04:05.000Z07:00"
-    }
-
-    // Forward to the Loki writer for output.
-    forward_to = [loki.write.mythical.receiver]
-}
-
-// Write out to the appropriate Loki instance.
-loki.write "mythical" {
-    // Output the Loki log to the local Loki instance.
+loki.write "logs" {
     endpoint {
-        url = json_path(local.file.endpoints.content, ".logs.url")[0]
-
-        // The basic auth credentials for the Loki instance.
-        basic_auth {
-            username = json_path(local.file.endpoints.content, ".logs.basicAuth.username")[0]
-            password = json_path(local.file.endpoints.content, ".logs.basicAuth.password")[0]
-        }
+        url = "http://loki:3100/loki/api/v1/push"
     }
 }
-
-// The Loki processor for Faro frontend logs
-loki.process "faro" {
-    // Add labels to identify frontend logs
-    stage.static_labels {
-        values = {
-            job = "mythical-frontend",
-            group = "mythical",
-            service_name = "mythical-frontend",
-        }
-    }
-
-    // Forward to the Faro Loki writer for output
-    forward_to = [loki.write.mythical.receiver]
-}
-
-
-/*loki.write "faro" {
-    // Output the Faro logs to the local Loki instance
-    endpoint {
-        url = json_path(local.file.endpoints.content, ".logs.url")[0]
-
-        // The basic auth credentials for the Loki instance
-        basic_auth {
-            username = json_path(local.file.endpoints.content, ".logs.basicAuth.username")[0]
-            password = json_path(local.file.endpoints.content, ".logs.basicAuth.password")[0]
-        }
-    }
-}*/
 
 ///////////////////////////////////////////////////////////////////////////////
 // Tracing
@@ -216,26 +103,6 @@ otelcol.receiver.otlp "otlp_receiver" {
         metrics = [
             otelcol.processor.batch.default.input,
         ]
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Faro (Frontend Observability)
-
-// The Faro receiver is used to ingest frontend telemetry data from Grafana Faro SDK.
-// This includes traces, logs, measurements, and web vitals from browser applications.
-faro.receiver "frontend" {
-    // Listen for Faro data on port 12350 (custom port to avoid conflicts)
-    server {
-        listen_address = "0.0.0.0"
-        listen_port = 12350
-        cors_allowed_origins = ["*"]
-    }
-
-    // Forward all received data to the appropriate processors
-    output {
-        logs = [loki.process.faro.receiver]
-        traces = [otelcol.processor.batch.default.input]
     }
 }
 

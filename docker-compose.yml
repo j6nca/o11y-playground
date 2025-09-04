@@ -15,6 +15,12 @@ services:
       # Sending example-api traces and profiling to alloy (OTEL collector)
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
       - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
+      - LOKI_SERVER_ADDRESS=alloy:4317
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 512M
     depends_on:
       - alloy
 
@@ -32,6 +38,7 @@ services:
       # Sending example-app traces and profiling to alloy (OTEL collector)
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
       - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
+      - LOKI_SERVER_ADDRESS=alloy:4317
       - API_SERVER_ADDRESS=http://example-api:8080/products
     depends_on:
       - alloy
@@ -207,6 +214,8 @@ services:
     volumes:
       - "./alloy/config.alloy:/etc/alloy/config.alloy"
       - "./alloy/endpoints.json:/etc/alloy/endpoints.json"
+      # Allow alloy to talk to docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
     command:
       [
         "run",
