@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"time"
 	"os"
-	"io"
+	// "io"
+	"encoding/json"
+	"fmt"
 
 	"github.com/grafana/pyroscope-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -61,6 +63,14 @@ type Config struct {
 		apiServer  string
 }
 
+// Product represents a product in our system.
+// This is needed to unmarshal the JSON response from the API service.
+type Product struct {
+	ID    int `json:"id"`
+	Name  string `json:"name"`
+	Price int    `json:"price"`
+}
+
 func init() {
 	// Register the metrics with Prometheus's default registry.
 	prometheus.MustRegister(requestCount, requestLatency, workLevel)
@@ -78,7 +88,7 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	})))
-	
+
 	// Setup OpenTelemetry for tracing
 	shutdown := setupTracer(config)
 	defer shutdown()
@@ -96,6 +106,22 @@ func main() {
 	http.Handle("/", otelhttp.NewHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
+			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "store-client-handler")
+			defer span.End()
+
+			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)
+
+			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
+			requestLatency.WithLabelValues(r.URL.Path).Observe(0) // Simplified latency for this example
+
+			fmt.Fprint(w, "Welcome to the Kitchen store!")
+		}),
+		"store-client-handler-span",
+	))
+
+	http.Handle("/products", otelhttp.NewHandler(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
 			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "example-app-handler")
 			defer span.End()
 
@@ -105,35 +131,35 @@ func main() {
 			req, _ := http.NewRequestWithContext(ctx, "GET", config.apiServer, nil)
 			resp, err := client.Do(req)
 			if err != nil {
-				slog.ErrorContext(ctx, "Failed to call Go api service", "error", err)
-				http.Error(w, "Failed to call example-api service", http.StatusInternalServerError)
+				slog.ErrorContext(ctx, "Failed to call store-api service", "error", err)
+				http.Error(w, "Failed to call store-api service", http.StatusInternalServerError)
 				return
 			}
 			defer resp.Body.Close()
 
-			slog.InfoContext(ctx, "Successfully called Go api service", "status_code", resp.StatusCode)
+			slog.InfoContext(ctx, "Successfully called store-api service", "status_code", resp.StatusCode)
 
 			// Read and forward the response from the first service
-			body, _ := io.ReadAll(resp.Body)
-			w.Header().Set("Content-Type", "text/plain")
-			w.WriteHeader(http.StatusOK)
-			w.Write(body)
+			var products []Product
+			if err := json.NewDecoder(resp.Body).Decode(&products); err != nil {
+				span.RecordError(err)
+				http.Error(w, fmt.Sprintf("Error decoding products JSON: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			// Format the product data into a user-friendly response.
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprintf(w, "<html><body><h1>Our Products</h1><ul>")
+			for _, p := range products {
+				fmt.Fprintf(w, "<li><strong>%d</strong>: %s ($%d)</li>", p.ID, p.Name, p.Price)
+			}
+			fmt.Fprintf(w, "</ul></body></html>")
 
 			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
 			requestLatency.WithLabelValues(r.URL.Path).Observe(0) // Simplified latency for this example
 
 		}),
 		"example-app-handler-span",
-	))
-
-	// Path to demonstrate an error
-	http.Handle("/error", otelhttp.NewHandler(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			slog.Error("An intentional error occurred.", "path", r.URL.Path)
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
-			http.Error(w, "An intentional error occurred.", http.StatusInternalServerError)
-		}),
-		"error-handler-span",
 	))
 
 	// Endpoint to get metrics
