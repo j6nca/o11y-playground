@@ -76,10 +76,11 @@ loki.write "logs" {
 
 pyroscope.scrape "containers" {
   targets    = discovery.relabel.containers.output
-profiling_config {
+  scrape_interval = "15s"
+  profiling_config {
     profile.process_cpu {
         enabled = true
-        path = "/debug/pprof/profile"
+        path = "/debug/pprof/profile?seconds=10"
         delta = true
     }
     profile.memory {
@@ -96,7 +97,7 @@ profiling_config {
     profile.mutex {
         enabled = false
     }
-}
+  }
   forward_to = [pyroscope.write.profiles.receiver]
 }
 
