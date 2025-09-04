@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"time"
 	"os"
-	"io"
+	"encoding/json"
 
 	"github.com/grafana/pyroscope-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -56,7 +58,16 @@ type Config struct {
     serviceName string
     pyroscopeServer string
     tempoServer string
-		exampleServer  string
+}
+
+type Product struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+}
+
+type Employee struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
 }
 
 func init() {
@@ -70,7 +81,32 @@ func main() {
 		serviceName: os.Getenv("OTEL_SERVICE_NAME"),
 		pyroscopeServer: os.Getenv("PYROSCOPE_SERVER_ADDRESS"),
 		tempoServer: os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"),
-		exampleServer: os.Getenv("EXAMPLE_SERVER_ADDRESS"),
+	}
+
+	products := []Product{
+			{ID: 1, Name: "Mug"},
+			{ID: 2, Name: "Bowl"},
+			{ID: 3, Name: "Plate"},
+			{ID: 4, Name: "Fork"},
+			{ID: 5, Name: "Spoon"},
+			{ID: 6, Name: "Knife"},
+			{ID: 7, Name: "Cup"},
+			{ID: 8, Name: "Saucer"},
+			{ID: 9, Name: "Dish"},
+			{ID: 10, Name: "Glass"},
+	}
+
+	employees := []Employee{
+			{ID: 1, Name: "Jeff"},
+			{ID: 2, Name: "Benny"},
+			{ID: 3, Name: "Lisa"},
+			{ID: 4, Name: "Craig"},
+			{ID: 5, Name: "Greg"},
+			{ID: 6, Name: "Sheila"},
+			{ID: 7, Name: "Steven"},
+			{ID: 8, Name: "Kelly"},
+			{ID: 9, Name: "Dina"},
+			{ID: 10, Name: "Kevin"},
 	}
 
 	// Setup OpenTelemetry for tracing
@@ -81,43 +117,29 @@ func main() {
 	setupProfiler(config)
 
 	// Logger setup for Loki
-	slog.Info("Starting Go application 2 ...")
-
-	// Create an HTTP client that automatically adds tracing headers
-	client := http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
+	slog.Info("Starting Go application...")
 
 	// Define HTTP handlers
 	http.Handle("/", otelhttp.NewHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "go-app2-handler")
+			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "root-handler")
 			defer span.End()
 
 			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)
 
-			// Make a request to the first Go service, propagating the trace context
-			req, _ := http.NewRequestWithContext(ctx, "GET", config.exampleServer, nil)
-			resp, err := client.Do(req)
-			if err != nil {
-				slog.ErrorContext(ctx, "Failed to call Go app service", "error", err)
-				http.Error(w, "Failed to call example-app service", http.StatusInternalServerError)
-				return
-			}
-			defer resp.Body.Close()
-
-			slog.InfoContext(ctx, "Successfully called Go app service", "status_code", resp.StatusCode)
-
-			// Read and forward the response from the first service
-			body, _ := io.ReadAll(resp.Body)
-			w.Header().Set("Content-Type", "text/plain")
-			w.WriteHeader(http.StatusOK)
-			w.Write(body)
+			// Simulating some work
+			workDuration := time.Duration(rand.Intn(1000)) * time.Millisecond
+			time.Sleep(workDuration)
+			workLevel.Set(float64(workDuration.Milliseconds()))
 
 			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
-			requestLatency.WithLabelValues(r.URL.Path).Observe(0) // Simplified latency for this example
+			requestLatency.WithLabelValues(r.URL.Path).Observe(workDuration.Seconds())
 
+			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", workDuration.Milliseconds())
+			fmt.Fprintf(w, "This is the kitchen store api. Work completed in %d ms.\n", workDuration.Milliseconds())
 		}),
-		"example-app2-handler-span",
+		"root-handler-span",
 	))
 
 	// Path to demonstrate an error
@@ -130,11 +152,71 @@ func main() {
 		"error-handler-span",
 	))
 
+	http.Handle("/products", otelhttp.NewHandler(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "products-handler")
+			defer span.End()
+
+			slog.InfoContext(ctx, "Received request on products path", "path", r.URL.Path)
+			start := time.Now()
+			go func() {
+				for {
+					cpuIntensiveWork(100000000) // Adjust iterations to control CPU load
+					time.Sleep(100 * time.Millisecond) // Add a small delay to avoid 100% CPU saturation
+				}
+			}()
+			duration := time.Since(start)
+			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
+			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
+
+			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
+			// fmt.Fprintf(w, "Hello, Observability! Work completed in %d ms.\n", workDuration.Milliseconds())
+
+			jsonData, err := json.Marshal(products)
+			if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(jsonData)
+		}),
+		"products-handler-span",
+	))
+
+	http.Handle("/employees", otelhttp.NewHandler(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "employees-handler")
+			defer span.End()
+
+			slog.InfoContext(ctx, "Received request on employees path", "path", r.URL.Path)
+
+			// For sake of this example, set latency to 0
+			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
+			requestLatency.WithLabelValues(r.URL.Path).Observe(0)
+
+			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", 0)
+			// fmt.Fprintf(w, "Hello, Observability! Work completed in %d ms.\n", workDuration.Milliseconds())
+
+			jsonData, err := json.Marshal(employees)
+			if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(jsonData)
+		}),
+		"employees-handler-span",
+	))
+
 	// Endpoint to get metrics
 	http.Handle("/metrics", promhttp.Handler())
 
-	slog.Info("Application is listening on port 8081...")
-	http.ListenAndServe(":8081", nil)
+	slog.Info("Application is listening on port 8080...")
+	http.ListenAndServe(":8080", nil)
 }
 
 func setupTracer(config Config) func() {
@@ -192,5 +274,13 @@ func setupProfiler(config Config) {
 	})
 	if err != nil {
 		slog.Error("Failed to start Pyroscope profiler:", "error", err)
+	}
+}
+
+// cpuIntensiveWork simulates CPU usage by performing a busy loop.
+func cpuIntensiveWork(iterations int) {
+	for i := 0; i < iterations; i++ {
+		// Perform a simple arithmetic operation to keep the CPU busy
+		_ = i * i
 	}
 }

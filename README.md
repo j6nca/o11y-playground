@@ -71,3 +71,19 @@ If internet permits, please run `git pull` prior to the workshop just to ensure 
 ```
 docker-compose up -d --wait
 ```
+
+## Workshop
+
+During the workshop, you may want to make code changes and re-deploy services, to do so, please modify the code in respective directories and re-deploy them via:
+
+```
+docker-compose up -d --wait --build
+```
+
+## Cleanup
+
+After the workshop, please spin down services and you can then remove relevant files locally:
+
+```
+docker-compose down
+```

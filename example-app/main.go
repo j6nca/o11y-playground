@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"math/rand"
 	"net/http"
 	"time"
 	"os"
+	"io"
 
 	"github.com/grafana/pyroscope-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -57,6 +56,7 @@ type Config struct {
     serviceName string
     pyroscopeServer string
     tempoServer string
+		apiServer  string
 }
 
 func init() {
@@ -70,6 +70,7 @@ func main() {
 		serviceName: os.Getenv("OTEL_SERVICE_NAME"),
 		pyroscopeServer: os.Getenv("PYROSCOPE_SERVER_ADDRESS"),
 		tempoServer: os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"),
+		apiServer: os.Getenv("API_SERVER_ADDRESS"),
 	}
 
 	// Setup OpenTelemetry for tracing
@@ -80,29 +81,43 @@ func main() {
 	setupProfiler(config)
 
 	// Logger setup for Loki
-	slog.Info("Starting Go application...")
+	slog.Info("Starting Go application 2 ...")
+
+	// Create an HTTP client that automatically adds tracing headers
+	client := http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 
 	// Define HTTP handlers
 	http.Handle("/", otelhttp.NewHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "root-handler")
+			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "go-app2-handler")
 			defer span.End()
 
 			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)
 
-			// Simulating some work
-			workDuration := time.Duration(rand.Intn(1000)) * time.Millisecond
-			time.Sleep(workDuration)
-			workLevel.Set(float64(workDuration.Milliseconds()))
+			// Make a request to the first Go service, propagating the trace context
+			req, _ := http.NewRequestWithContext(ctx, "GET", config.apiServer, nil)
+			resp, err := client.Do(req)
+			if err != nil {
+				slog.ErrorContext(ctx, "Failed to call Go api service", "error", err)
+				http.Error(w, "Failed to call example-api service", http.StatusInternalServerError)
+				return
+			}
+			defer resp.Body.Close()
+
+			slog.InfoContext(ctx, "Successfully called Go api service", "status_code", resp.StatusCode)
+
+			// Read and forward the response from the first service
+			body, _ := io.ReadAll(resp.Body)
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			w.Write(body)
 
 			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
-			requestLatency.WithLabelValues(r.URL.Path).Observe(workDuration.Seconds())
+			requestLatency.WithLabelValues(r.URL.Path).Observe(0) // Simplified latency for this example
 
-			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", workDuration.Milliseconds())
-			fmt.Fprintf(w, "Hello, Observability! Work completed in %d ms.\n", workDuration.Milliseconds())
 		}),
-		"root-handler-span",
+		"example-app-handler-span",
 	))
 
 	// Path to demonstrate an error
@@ -118,8 +133,8 @@ func main() {
 	// Endpoint to get metrics
 	http.Handle("/metrics", promhttp.Handler())
 
-	slog.Info("Application is listening on port 8080...")
-	http.ListenAndServe(":8080", nil)
+	slog.Info("Application is listening on port 8081...")
+	http.ListenAndServe(":8081", nil)
 }
 
 func setupTracer(config Config) func() {

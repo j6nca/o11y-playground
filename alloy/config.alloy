@@ -37,12 +37,12 @@ prometheus.scrape "mltpg_infra" {
 }
 
 // This component scrapes the Mythical application, defining unique prometheus labels.
-prometheus.scrape "mythical" {
+prometheus.scrape "example" {
     // Scrape from the mythical requester and server services, and add them to the 'mythical' group with their service
     // names.
     targets = [
-        {"__address__" = "mythical-server:4000", group = "mythical", service = "mythical-server"},
-        {"__address__" = "mythical-requester:4001", group = "mythical", service = "mythical-requester"},
+        {"__address__" = "example-app:8081", group = "example", service = "example-api"},
+        {"__address__" = "example-api:8080", group = "example", service = "example-app"},
     ]
     // We need a scrape interval and timeout of 2s as we want reactive metric data.
     scrape_interval = "2s"
@@ -50,7 +50,7 @@ prometheus.scrape "mythical" {
     // Send the metrics to the prometheus remote write receiver for exporting to Mimir.
     forward_to = [prometheus.remote_write.metrics.receiver]
     // Attach the job name to the metrics.
-    job_name = "mythical"
+    job_name = "example"
 }
 
 // Scrape the local Alloy itself.
