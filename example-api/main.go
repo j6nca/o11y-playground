@@ -9,6 +9,7 @@ import (
 	"time"
 	"os"
 	"encoding/json"
+	"runtime/pprof"
 
 	"github.com/grafana/pyroscope-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -97,102 +98,23 @@ func main() {
 	setupProfiler(config)
 
 	// Logger setup for Loki
-	slog.Info("Starting Go application...")
+	slog.Info("Starting Kitchen Store API application...")
 
-	// Define HTTP handlers
-	http.Handle("/", otelhttp.NewHandler(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "example-api-handler")
-			defer span.End()
+	// Instrument the handlers with OpenTelemetry.
+	mux := http.NewServeMux()
+	mux.Handle("/products", otelhttp.NewHandler(http.HandlerFunc(productsHandler), "products-handler"))
+	mux.Handle("/employees", otelhttp.NewHandler(http.HandlerFunc(employeesHandler), "employees-handler"))
 
-			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)
-
-			// Simulating some work
-			workDuration := time.Duration(rand.Intn(1000)) * time.Millisecond
-			time.Sleep(workDuration)
-			workLevel.Set(float64(workDuration.Milliseconds()))
-
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
-			requestLatency.WithLabelValues(r.URL.Path).Observe(workDuration.Seconds())
-
-			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", workDuration.Milliseconds())
-			fmt.Fprintf(w, "This is the kitchen store api. Work completed in %d ms.\n", workDuration.Milliseconds())
-		}),
-		"example-api-handler-span",
-	))
-
-	// Path to demonstrate an error
-	http.Handle("/error", otelhttp.NewHandler(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			slog.Error("An intentional error occurred.", "path", r.URL.Path)
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
-			http.Error(w, "An intentional error occurred.", http.StatusInternalServerError)
-		}),
-		"error-handler-span",
-	))
-
-	http.Handle("/products", otelhttp.NewHandler(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "products-handler")
-			defer span.End()
-
-			slog.InfoContext(ctx, "Received request on products path", "path", r.URL.Path)
-			start := time.Now()
-			products := getProducts()
-			duration := time.Since(start)
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
-			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
-
-			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
-			
-			jsonData, err := json.Marshal(products)
-			if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(jsonData)
-		}),
-		"products-handler-span",
-	))
-
-	http.Handle("/employees", otelhttp.NewHandler(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "employees-handler")
-			defer span.End()
-
-			slog.InfoContext(ctx, "Received request on employees path", "path", r.URL.Path)
-			start := time.Now()
-			employees := getEmployees()
-			duration := time.Since(start)
-			// For sake of this example, set latency to 0
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
-			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
-
-			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
-			// fmt.Fprintf(w, "Hello, Observability! Work completed in %d ms.\n", workDuration.Milliseconds())
-
-			jsonData, err := json.Marshal(employees)
-			if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(jsonData)
-		}),
-		"employees-handler-span",
-	))
-
-	// Endpoint to get metrics
-	http.Handle("/metrics", promhttp.Handler())
-
+	// Expose pprof endpoints for profiling.
+	// Pyroscope or other profilers will scrape these.
+	mux.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+	mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+	mux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
+	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	
+	port := ":8080"
 	slog.Info("Application is listening on port 8080...")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(port, mux)
 }
 
 func setupTracer(config Config) func() {
@@ -253,7 +175,9 @@ func setupProfiler(config Config) {
 	}
 }
 
-func getEmployees() []Employee {
+// employeesHandler is a simple, fast endpoint.
+func employeesHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Handling /employees request...")
 	employees := []Employee{
 			{ID: 1, Name: "Jeff", Position: "Manager"},
 			{ID: 2, Name: "Benny", Position: "Sales Associate"},
@@ -266,11 +190,26 @@ func getEmployees() []Employee {
 			{ID: 9, Name: "Dina", Position: "Cashier"},
 			{ID: 10, Name: "Kevin", Position: "Cashier"},
 	}
-	
-	return employees
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(employees)
+	slog.Info("employees request handled.")
 }
 
-func getProducts() []Product {
+// productsHandler simulates a slow, CPU-intensive endpoint.
+func productsHandler(w http.ResponseWriter, r *http.Request) {
+	// Create a new span for the handler's logic.
+	ctx, span := tracer.Start(r.Context(), "products-handler")
+	defer span.End()
+
+	slog.Info("Handling /products request...")
+
+	// Simulate a bottleneck to cause a visible spike in the trace.
+	// This function will be the target for profiling.
+	simulateBottleneck(ctx)
+
+	// Add an attribute to the span to provide more context.
+	span.SetAttributes(attribute.Bool("bottleneck_simulated", true))
+
 	products := []Product{
 			{ID: 1, Name: "Mug", Price: 1099},
 			{ID: 2, Name: "Bowl", Price: 1599},
@@ -284,16 +223,25 @@ func getProducts() []Product {
 			{ID: 10, Name: "Glass", Price: 1199},
 	}
 
-	cpuIntensiveWork(100000000) // Adjust iterations to control CPU load
-	time.Sleep(100 * time.Millisecond) // Add a small delay to avoid 100% CPU saturation
-	
-	return products
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(products)
+	slog.Info("products request handled.")
 }
 
-// cpuIntensiveWork simulates CPU usage by performing a busy loop.
-func cpuIntensiveWork(iterations int) {
-	for i := 0; i < iterations; i++ {
-		// Perform a simple arithmetic operation to keep the CPU busy
-		_ = i * i
+// simulateBottleneck is a function that intentionally consumes CPU time.
+// This is what will show up in your CPU profile.
+func simulateBottleneck(ctx context.Context) {
+	// Create a span specifically for the simulated work.
+	_, span := tracer.Start(ctx, "simulate-cpu-work")
+	defer span.End()
+
+	// Perform a computationally expensive operation.
+	// This makes it easy to find in a CPU profile.
+	slog.Info("Simulating a CPU-intensive bottleneck...")
+	var counter int64
+	for i := 0; i < 5000000000; i++ {
+		counter += 1
 	}
+	fmt.Sprintf("Dummy work result: %d", counter)
+	slog.Info("CPU-intensive work complete.")
 }

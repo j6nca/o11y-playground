@@ -1,48 +1,85 @@
 name: workshop
 services:
-  # The example Go applicationsthat we will observe
-  example-api:
+  store-api:
     build:
-      context: ./example-api
+      context: ./store-api
       dockerfile: Dockerfile
     # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
     # image: ghcr.io/j6nca/o11y-playground-example-api:main
-    container_name: example-api
+    container_name: store-api
     ports:
       - "8080:8080"
     environment:
-      - OTEL_SERVICE_NAME=example-api
+      - OTEL_SERVICE_NAME=store-api
       # Sending example-api traces and profiling to alloy (OTEL collector)
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
       - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
       - LOKI_SERVER_ADDRESS=alloy:4317
-    deploy:
-      resources:
-        limits:
-          cpus: "0.1"
-          memory: 512M
     depends_on:
       - alloy
 
-  example-app:
+  store-client:
     build:
-      context: ./example-app
+      context: ./store-client
       dockerfile: Dockerfile
     # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
     # image: ghcr.io/j6nca/o11y-playground-example-app:main
-    container_name: example-app
+    container_name: store-client
     ports:
       - "8081:8081"
     environment:
-      - OTEL_SERVICE_NAME=example-app
+      - OTEL_SERVICE_NAME=store-client
       # Sending example-app traces and profiling to alloy (OTEL collector)
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
       - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
       - LOKI_SERVER_ADDRESS=alloy:4317
-      - API_SERVER_ADDRESS=http://example-api:8080/products
+      - API_SERVER_ADDRESS=http://store-api:8080/products
     depends_on:
       - alloy
-      - example-api
+      - store-api
+  # # The example Go applicationsthat we will observe
+  # example-api:
+  #   build:
+  #     context: ./example-api
+  #     dockerfile: Dockerfile
+  #   # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
+  #   # image: ghcr.io/j6nca/o11y-playground-example-api:main
+  #   container_name: example-api
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - OTEL_SERVICE_NAME=example-api
+  #     # Sending example-api traces and profiling to alloy (OTEL collector)
+  #     - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
+  #     - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
+  #     - LOKI_SERVER_ADDRESS=alloy:4317
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "0.1"
+  #         memory: 512M
+  #   depends_on:
+  #     - alloy
+
+  # example-app:
+  #   build:
+  #     context: ./example-app
+  #     dockerfile: Dockerfile
+  #   # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
+  #   # image: ghcr.io/j6nca/o11y-playground-example-app:main
+  #   container_name: example-app
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     - OTEL_SERVICE_NAME=example-app
+  #     # Sending example-app traces and profiling to alloy (OTEL collector)
+  #     - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
+  #     - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
+  #     - LOKI_SERVER_ADDRESS=alloy:4317
+  #     - API_SERVER_ADDRESS=http://example-api:8080/products
+  #   depends_on:
+  #     - alloy
+  #     - example-api
 
   # Add alertmanager for alert routing (so we can see alerts from vmalert)
   alertmanager:
