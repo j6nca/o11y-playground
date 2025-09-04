@@ -75,6 +75,10 @@ func main() {
 		apiServer: os.Getenv("API_SERVER_ADDRESS"),
 	}
 
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
+	
 	// Setup OpenTelemetry for tracing
 	shutdown := setupTracer(config)
 	defer shutdown()
@@ -141,6 +145,7 @@ func main() {
 
 func setupTracer(config Config) func() {
 	ctx := context.Background()
+	
 	slog.Info("Setting up traces with config", "config", config.tempoServer)
 	// Tempo gRPC endpoint from docker-compose.yml
 	conn, err := grpc.DialContext(ctx, config.tempoServer,

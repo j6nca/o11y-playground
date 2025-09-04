@@ -55,19 +55,21 @@ var (
 )
 
 type Config struct {
-    serviceName string
-    pyroscopeServer string
-    tempoServer string
+	serviceName string
+	pyroscopeServer string
+	tempoServer string
 }
 
 type Product struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Price int   `json:"price"`
 }
 
 type Employee struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
+	ID   int    		`json:"id"`
+	Name string 		`json:"name"`
+	Position string `json:"position"`
 }
 
 func init() {
@@ -82,6 +84,10 @@ func main() {
 		pyroscopeServer: os.Getenv("PYROSCOPE_SERVER_ADDRESS"),
 		tempoServer: os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"),
 	}
+
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
 
 	// Setup OpenTelemetry for tracing
 	shutdown := setupTracer(config)
@@ -249,16 +255,16 @@ func setupProfiler(config Config) {
 
 func getEmployees() []Employee {
 	employees := []Employee{
-			{ID: 1, Name: "Jeff"},
-			{ID: 2, Name: "Benny"},
-			{ID: 3, Name: "Lisa"},
-			{ID: 4, Name: "Craig"},
-			{ID: 5, Name: "Greg"},
-			{ID: 6, Name: "Sheila"},
-			{ID: 7, Name: "Steven"},
-			{ID: 8, Name: "Kelly"},
-			{ID: 9, Name: "Dina"},
-			{ID: 10, Name: "Kevin"},
+			{ID: 1, Name: "Jeff", Position: "Manager"},
+			{ID: 2, Name: "Benny", Position: "Sales Associate"},
+			{ID: 3, Name: "Lisa", Position: "Assistant Manager"},
+			{ID: 4, Name: "Craig", Position: "Sales Associate"},
+			{ID: 5, Name: "Greg", Position: "Sales Associate"},
+			{ID: 6, Name: "Sheila", Position: "Product Tester"},
+			{ID: 7, Name: "Steven", Position: "Clerk"},
+			{ID: 8, Name: "Kelly", Position: "Clerk"},
+			{ID: 9, Name: "Dina", Position: "Cashier"},
+			{ID: 10, Name: "Kevin", Position: "Cashier"},
 	}
 	
 	return employees
@@ -266,16 +272,16 @@ func getEmployees() []Employee {
 
 func getProducts() []Product {
 	products := []Product{
-			{ID: 1, Name: "Mug"},
-			{ID: 2, Name: "Bowl"},
-			{ID: 3, Name: "Plate"},
-			{ID: 4, Name: "Fork"},
-			{ID: 5, Name: "Spoon"},
-			{ID: 6, Name: "Knife"},
-			{ID: 7, Name: "Cup"},
-			{ID: 8, Name: "Saucer"},
-			{ID: 9, Name: "Dish"},
-			{ID: 10, Name: "Glass"},
+			{ID: 1, Name: "Mug", Price: 1099},
+			{ID: 2, Name: "Bowl", Price: 1599},
+			{ID: 3, Name: "Plate", Price: 1299},
+			{ID: 4, Name: "Fork", Price: 599},
+			{ID: 5, Name: "Spoon", Price: 799},
+			{ID: 6, Name: "Knife", Price: 1099},
+			{ID: 7, Name: "Cup", Price: 899},
+			{ID: 8, Name: "Saucer", Price: 699},
+			{ID: 9, Name: "Dish", Price: 1499},
+			{ID: 10, Name: "Glass", Price: 1199},
 	}
 
 	cpuIntensiveWork(100000000) // Adjust iterations to control CPU load
