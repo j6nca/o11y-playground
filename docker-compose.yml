@@ -97,8 +97,8 @@ services:
       - "8401:8401"
       # metrics
       - "8482:8482"
-    volumes:
-      - ./vmstorage:/vmstorage
+    # volumes:
+    #   - ./vmstorage:/vmstorage
 
   # vmagent:
   #   image: victoriametrics/vmagent:v1.125.0
@@ -141,7 +141,7 @@ services:
       - "3000:3000"
     environment:
       - GF_FEATURE_TOGGLES_ENABLE=flameGraph traceqlSearch traceQLStreaming correlations metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails
-      - GF_INSTALL_PLUGINS=grafana-lokiexplore-app,grafana-exploretraces-app,grafana-pyroscope-app
+      # - GF_INSTALL_PLUGINS=grafana-lokiexplore-app,grafana-exploretraces-app,grafana-pyroscope-app
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=true

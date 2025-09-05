@@ -10,7 +10,7 @@ This project contains files to spin up a standalone environment, to get folks fa
 You will need `docker`, `docker compose` which can be installed via the following:
 
 ```
-$ brew install colima docker-compose docker docker-buildx
+$ brew install colima docker-compose docker docker-buildx hey
 $ export DOCKER_HOST="unix://$HOME/.colima/docker.sock"
 $ colima start
 ```
