@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 3,
   "links": [],
   "panels": [
     {
@@ -142,7 +142,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "go_app_http_requests_total{service_name=\"store-api\"}",
+          "expr": "sum(go_app_http_requests_total{service_name=\"store-api\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -389,5 +389,5 @@
   "timezone": "browser",
   "title": "Monitoring Workshop",
   "uid": "7aec7434-ec47-4781-ba1c-0d94c1c8d356",
-  "version": 25
+  "version": 1
 }
