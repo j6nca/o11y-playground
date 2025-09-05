@@ -1,11 +1,12 @@
 apiVersion: 1
 
 providers:
-- name: 'MLT'
-  orgId: 1
-  type: file
-  disableDeletion: false
-  editable: false
-  updateIntervalSeconds: 10
-  options:
-    path: /var/lib/grafana/dashboards/
+  - name: "workshop"
+    orgId: 1
+    type: file
+    folder: "Monitoring Workshop"
+    disableDeletion: true
+    editable: true
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards/

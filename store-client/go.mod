@@ -1,4 +1,4 @@
-module example-app
+module store-client
 
 go 1.24
 

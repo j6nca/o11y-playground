@@ -119,7 +119,7 @@ func main() {
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", workDuration.Milliseconds())
 			fmt.Fprintf(w, "This is the kitchen store api. Work completed in %d ms.\n", workDuration.Milliseconds())
 		}),
-		"example-api-handler-span",
+		"store-api-handler-span",
 	))
 
 	// Path to demonstrate an error

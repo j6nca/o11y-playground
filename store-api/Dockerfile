@@ -10,14 +10,14 @@ RUN go mod download
 COPY . .
 
 # Build the Go application binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o /example-api
+RUN CGO_ENABLED=0 GOOS=linux go build -o /store-api
 
 # Use a minimal image for the final container
 FROM alpine:latest
 WORKDIR /
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /example-api .
+COPY --from=builder /store-api .
 
 # Set the entry point to run the application
-CMD ["/example-api"]
+CMD ["/store-api"]

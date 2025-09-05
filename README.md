@@ -80,6 +80,27 @@ During the workshop, you may want to make code changes and re-deploy services, t
 docker-compose up -d --wait --build
 ```
 
+### Accessing the services
+
+#### Working Examples (You will mostly work with these apps)
+
+- [store-app](http://localhost:8081)
+- [store-api](http://localhost:8080)
+- [grafana](http://localhost:3000)
+- [vmalert](http://localhost:8880)
+- [alertmanager](http://localhost:9093)
+- [alloy](http://localhost:12345)
+- [gatus](http://localhost:8888)
+
+#### Observability Stack
+
+- [loki](http://localhost:3100)
+- [pyroscope](http://localhost:4040)
+- [tempo](http://localhost:3200)
+- [vmselect](http://localhost:8481)
+- [vmstorage](http://localhost:8401)
+- [vminsert](http://localhost:8480)
+
 ## Cleanup
 
 After the workshop, please spin down services and you can then remove relevant files locally:

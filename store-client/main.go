@@ -122,7 +122,7 @@ func main() {
 	http.Handle("/products", otelhttp.NewHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "example-app-handler")
+			_, span := otel.Tracer("go.opentelemetry.io/http").Start(ctx, "store-client-handler")
 			defer span.End()
 
 			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)
@@ -159,7 +159,7 @@ func main() {
 			requestLatency.WithLabelValues(r.URL.Path).Observe(0) // Simplified latency for this example
 
 		}),
-		"example-app-handler-span",
+		"store-client-handler-span",
 	))
 
 	// Endpoint to get metrics
