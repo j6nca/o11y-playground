@@ -15,6 +15,18 @@ $ export DOCKER_HOST="unix://$HOME/.colima/docker.sock"
 $ colima start
 ```
 
+Note: With homebrew installed docker-compose and docker-buildx, you may need to update your docker config to include the following to properly reference the plugins.
+
+```
+# In your ~/.docker/config.json:
+{
+  ...
+  "cliPluginsExtraDirs": [
+      "/opt/homebrew/lib/docker/cli-plugins"
+  ]
+}
+```
+
 ### Setup
 
 Please run through this setup prior to the workshop & travels (ideally before you get stuck on shared hotel wifi 😅).
