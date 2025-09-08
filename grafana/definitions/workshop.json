@@ -461,7 +461,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "go_app_http_requests_total{status_code=~\"5..\"} > 50",
+          "expr": "sum(rate(go_app_http_requests_total{status_code=~\"5..\"}[5m]))/sum(rate(go_app_http_requests_total[5m]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -479,7 +479,7 @@
     "list": []
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
