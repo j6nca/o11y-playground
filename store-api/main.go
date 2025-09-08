@@ -32,7 +32,7 @@ var (
 			Name: "go_app_http_requests_total",
 			Help: "Total number of HTTP requests.",
 		},
-		[]string{"path", "method"},
+		[]string{"path", "method", "status_code"},
 	)
 
 	// Create a new histogram for request latencies.
@@ -113,7 +113,7 @@ func main() {
 			time.Sleep(workDuration)
 			workLevel.Set(float64(workDuration.Milliseconds()))
 
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
+			requestCount.WithLabelValues(r.URL.Path, r.Method, "200").Inc()
 			requestLatency.WithLabelValues(r.URL.Path).Observe(workDuration.Seconds())
 
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", workDuration.Milliseconds())
@@ -126,7 +126,7 @@ func main() {
 	http.Handle("/error", otelhttp.NewHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Error("An intentional error occurred.", "path", r.URL.Path)
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
+			requestCount.WithLabelValues(r.URL.Path, r.Method, "500").Inc()
 			http.Error(w, "An intentional error occurred.", http.StatusInternalServerError)
 		}),
 		"error-handler-span",
@@ -142,7 +142,7 @@ func main() {
 			start := time.Now()
 			products := getProducts()
 			duration := time.Since(start)
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
+			requestCount.WithLabelValues(r.URL.Path, r.Method, "200").Inc()
 			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
 
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
@@ -170,7 +170,7 @@ func main() {
 			employees := getEmployees()
 			duration := time.Since(start)
 			// For sake of this example, set latency to 0
-			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
+			requestCount.WithLabelValues(r.URL.Path, r.Method, "200").Inc()
 			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
 
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
