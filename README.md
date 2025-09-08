@@ -82,7 +82,9 @@ docker-compose up -d --wait --build
 
 ### Accessing the services
 
-#### Working Examples (You will mostly work with these apps)
+The provisioned [Monitoring Workshop > Monitoring Workshop](http://localhost:3000/d/7aec7434-ec47-4781-ba1c-0d94c1c8d356/monitoring-workshop?orgId=1&from=now-5m&to=now&timezone=browser) dashboard also includes links to the following for ease of reference.
+
+#### Working Examples (You will mostly interact with these apps)
 
 - [store-app](http://localhost:8081)
 - [store-api](http://localhost:8080)

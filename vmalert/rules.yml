@@ -1,11 +1,11 @@
 groups:
-  - name: go-app-rules
+  - name: store-api
     rules:
-      - alert: HighRequestLatency
-        expr: histogram_quantile(0.99, sum(rate(go_app_http_request_duration_seconds_bucket[1m])) by (le)) > 0.5
+      - alert: HighErrorRate
+        expr: go_app_http_requests_total{status_code=~"5.."} > 50
         for: 1m
         labels:
-          severity: warning
+          severity: critical
+          owner_team: my_team
         annotations:
-          summary: High latency detected on Go application
-          description: "The 99th percentile request latency is {{ $value }} seconds on path {{ $labels.path }}"
+          summary: High error rates detected from store api
