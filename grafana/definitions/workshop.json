@@ -39,7 +39,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "# Monitoring Workshop\n\n## Workshop links\n\n- [store-app](http://localhost:8081)\n- [store-api](http://localhost:8080)\n- [vmalert](http://localhost:8880)\n- [alertmanager](http://localhost:9093)\n\n## Other links",
+        "content": "# Monitoring Workshop\n\n## Workshop links\n\n- [store-app](http://localhost:8081)\n- [store-api](http://localhost:8080)\n- [vmalert](http://localhost:8880)\n- [alertmanager](http://localhost:9093)\n\n## Other links (for fun)\n\n- [grafana](http://localhost:3000)\n- [alloy](http://localhost:12345)\n- [pyroscope](http://localhost:4040)\n- [gatus](http://localhost:8888)",
         "mode": "markdown"
       },
       "pluginVersion": "12.0.2",
@@ -120,7 +120,7 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 5,
+        "w": 6,
         "x": 0,
         "y": 8
       },
@@ -212,8 +212,8 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 5,
-        "x": 5,
+        "w": 7,
+        "x": 6,
         "y": 8
       },
       "id": 4,
@@ -233,10 +233,14 @@
       "pluginVersion": "12.0.2",
       "targets": [
         {
+          "editorMode": "code",
+          "expr": "sum(go_app_http_requests_total{service_name=\"store-api\", status_code=~\"5..\"})",
+          "legendFormat": "__auto",
+          "range": true,
           "refId": "A"
         }
       ],
-      "title": "Errors",
+      "title": "Request Errors",
       "type": "timeseries"
     },
     {
@@ -300,8 +304,8 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 5,
-        "x": 10,
+        "w": 11,
+        "x": 13,
         "y": 8
       },
       "id": 1,
@@ -326,7 +330,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "go_app_http_request_duration_seconds_sum{service_name=\"store-api\"}",
+          "expr": "avg(go_app_http_request_duration_seconds_sum{service_name=\"store-api\", path!=\"/favicon.ico\"}) by (path)",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
