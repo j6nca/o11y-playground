@@ -105,17 +105,17 @@ endpoints:
       - "[STATUS] <= 299"
       - "[RESPONSE_TIME] <= 200"
 
-  - name: example-api
-    group: app
-    url: http://example-api:8080/metrics
+  - name: rideshare-us-east
+    group: rideshare-example
+    url: http://us-east:5000
     method: GET
     interval: 30s
     conditions:
       - "[STATUS] <= 299"
       - "[RESPONSE_TIME] <= 200"
-  - name: example-app
-    group: app
-    url: http://example-app:8081/metrics
+  - name: rideshare-eu-north
+    group: rideshare-example
+    url: http://eu-north:5000
     method: GET
     interval: 30s
     conditions:

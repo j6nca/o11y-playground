@@ -16,87 +16,24 @@ datasources:
   - name: Tempo
     type: tempo
     access: proxy
-    uid: tempo
+    orgId: 1
     url: http://tempo:3200
+    basicAuth: false
+    version: 1
+    editable: false
+    apiVersion: 1
+    uid: tempo
     jsonData:
-      nodeGraph:
-        enabled: true
+      httpMethod: GET
       serviceMap:
-        datasourceUid: "Mimir"
-      tracesToLogs:
-        datasourceUid: loki
-        filterByTraceID: false
-        spanEndTimeShift: "500ms"
-        spanStartTimeShift: "-500ms"
-        tags: ["beast"]
-    correlations:
-      - targetUID: postgres
-        label: "Count $$beast in table"
-        description: ""
-        config:
-          type: query
-          field: tags
-          target:
-            editorMode: code
-            format: table
-            rawQuery: true
-            rawSql: "SELECT COUNT(*) FROM $$beast;"
-            refId: A
-            sql:
-              columns:
-                - parameters: []
-                  type: function
-              groupBy:
-                - property:
-                    type: string
-                  type: groupBy
-              limit: 50
-          transformations:
-            - type: regex
-              expression: .*{"value":"(.*?)","key":"beast".*}
-              mapValue: beast
-      - targetUID: postgres
-        label: "$$statement"
-        description: "Runs the found DB statement in the span"
-        config:
-          type: query
-          field: tags
-          target:
-            editorMode: code
-            filters:
-              - operator: "="
-                scope: span
-            format: table
-            limit: 20
-            queryType: traceqlSearch
-            rawQuery: true
-            rawSql: "$$statement;"
-            refId: A
-            sql:
-              columns:
-                - parameters: []
-                  type: function
-              groupBy:
-                - property:
-                    type: string
-                  type: groupBy
-              limit: 50
-          transformations:
-            - type: regex
-              expression: .*{"value":"(.*?)","key":"db.statement".*}
-              mapValue: statement
-
-  # - name: Mimir
-  #   type: prometheus
-  #   access: proxy
-  #   uid: mimir
-  #   url: http://mimir:9009/prometheus
-  #   jsonData:
-  #     exemplarTraceIdDestinations:
-  #       - datasourceUid: tempo
-  #         name: traceID
-  #     httpMethod: POST
-  #     timeInterval: "2s"
+        datasourceUid: prometheus
+      tracesToProfiles:
+        customQuery: false
+        datasourceUid: "pyroscope"
+        profileTypeId: "process_cpu:cpu:nanoseconds:cpu:nanoseconds"
+        tags:
+          - key: "service.name"
+            value: "service_name"
 
   - name: Pyroscope
     type: phlare
@@ -105,18 +42,6 @@ datasources:
     url: http://pyroscope:4040
     jsonData:
       backendType: pyroscope
-
-  - name: Postgres
-    type: postgres
-    uid: postgres
-    url: mythical-database:5432
-    user: postgres
-    jsonData:
-      database: postgres
-      sslmode: disable
-      postgresVersion: 1400
-    secureJsonData:
-      password: mythical
 
     # <string, required> Name of the VictoriaMetrics datasource
     # displayed in Grafana panels and queries.

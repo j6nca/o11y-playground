@@ -9,7 +9,6 @@ import (
 	// "io"
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/grafana/pyroscope-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,7 +34,7 @@ var (
 			Name: "go_app_http_requests_total",
 			Help: "Total number of HTTP requests.",
 		},
-		[]string{"path", "method", "status_code"},
+		[]string{"path", "method"},
 	)
 
 	// Create a new histogram for request latencies.
@@ -112,14 +111,10 @@ func main() {
 
 			slog.InfoContext(ctx, "Received request on root path", "path", r.URL.Path)
 
-			requestCount.WithLabelValues(r.URL.Path, r.Method, strconv.Itoa(http.StatusOK)).Inc()
+			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
 			requestLatency.WithLabelValues(r.URL.Path).Observe(0) // Simplified latency for this example
 
-			// Format the product data into a user-friendly response.
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "<html><body><h1>Welcome to the Kitchen store!</h1><p>")
-			fmt.Fprint(w, "<a href='/products'>View Our Products</a></p></body></html>")
+			fmt.Fprint(w, "Welcome to the Kitchen store!")
 		}),
 		"store-client-handler-span",
 	))
@@ -154,14 +149,13 @@ func main() {
 
 			// Format the product data into a user-friendly response.
 			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "<html><body><h1>Our Products</h1><ul>")
 			for _, p := range products {
 				fmt.Fprintf(w, "<li><strong>%d</strong>: %s ($%d)</li>", p.ID, p.Name, p.Price)
 			}
 			fmt.Fprintf(w, "</ul></body></html>")
 
-			requestCount.WithLabelValues(r.URL.Path, r.Method, strconv.Itoa(http.StatusOK)).Inc()
+			requestCount.WithLabelValues(r.URL.Path, r.Method).Inc()
 			requestLatency.WithLabelValues(r.URL.Path).Observe(0) // Simplified latency for this example
 
 		}),

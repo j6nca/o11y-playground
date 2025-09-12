@@ -9,7 +9,6 @@ import (
 	"time"
 	"os"
 	"encoding/json"
-	"strconv"
 
 	"github.com/grafana/pyroscope-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -114,7 +113,7 @@ func main() {
 			time.Sleep(workDuration)
 			workLevel.Set(float64(workDuration.Milliseconds()))
 
-			requestCount.WithLabelValues(r.URL.Path, r.Method, strconv.Itoa(http.StatusOK)).Inc()
+			requestCount.WithLabelValues(r.URL.Path, r.Method, "200").Inc()
 			requestLatency.WithLabelValues(r.URL.Path).Observe(workDuration.Seconds())
 
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", workDuration.Milliseconds())
@@ -127,7 +126,7 @@ func main() {
 	http.Handle("/error", otelhttp.NewHandler(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slog.Error("An intentional error occurred.", "path", r.URL.Path)
-			requestCount.WithLabelValues(r.URL.Path, r.Method, strconv.Itoa(http.StatusInternalServerError)).Inc()
+			requestCount.WithLabelValues(r.URL.Path, r.Method, "500").Inc()
 			http.Error(w, "An intentional error occurred.", http.StatusInternalServerError)
 		}),
 		"error-handler-span",
@@ -143,7 +142,8 @@ func main() {
 			start := time.Now()
 			products := getProducts()
 			duration := time.Since(start)
-			
+			requestCount.WithLabelValues(r.URL.Path, r.Method, "200").Inc()
+			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
 
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
 			
@@ -153,11 +153,7 @@ func main() {
 					return
 			}
 
-			requestCount.WithLabelValues(r.URL.Path, r.Method, strconv.Itoa(http.StatusOK)).Inc()
-			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
-			
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
 			w.Write(jsonData)
 		}),
 		"products-handler-span",
@@ -173,8 +169,12 @@ func main() {
 			start := time.Now()
 			employees := getEmployees()
 			duration := time.Since(start)
+			// For sake of this example, set latency to 0
+			requestCount.WithLabelValues(r.URL.Path, r.Method, "200").Inc()
+			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
 
 			slog.InfoContext(ctx, "Request handled successfully", "duration_ms", duration.Milliseconds())
+			// fmt.Fprintf(w, "Hello, Observability! Work completed in %d ms.\n", workDuration.Milliseconds())
 
 			jsonData, err := json.Marshal(employees)
 			if err != nil {
@@ -182,12 +182,7 @@ func main() {
 					return
 			}
 
-			// For sake of this example, set latency to 0
-			requestCount.WithLabelValues(r.URL.Path, r.Method, strconv.Itoa(http.StatusOK)).Inc()
-			requestLatency.WithLabelValues(r.URL.Path).Observe(duration.Seconds())
-
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
 			w.Write(jsonData)
 		}),
 		"employees-handler-span",
@@ -289,13 +284,16 @@ func getProducts() []Product {
 			{ID: 10, Name: "Glass", Price: 1199},
 	}
 
-	// Simulate a slow operation that "hangs"
-	fmt.Println("Handling request, simulating slow operation...")
-	time.Sleep(5 * time.Second) // The intentional delay
-
-	// This is the part that will show up as a bottleneck in Pyroscope
-	_, productSpan := tr.Start(ctx, "fetch-products-data")
-	defer productSpan.End()
+	cpuIntensiveWork(100000000) // Adjust iterations to control CPU load
+	time.Sleep(100 * time.Millisecond) // Add a small delay to avoid 100% CPU saturation
 	
 	return products
+}
+
+// cpuIntensiveWork simulates CPU usage by performing a busy loop.
+func cpuIntensiveWork(iterations int) {
+	for i := 0; i < iterations; i++ {
+		// Perform a simple arithmetic operation to keep the CPU busy
+		_ = i * i
+	}
 }

@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 3,
   "links": [],
   "panels": [
     {
@@ -56,7 +56,7 @@
       },
       "id": 6,
       "panels": [],
-      "title": "rideshare",
+      "title": "store-api",
       "type": "row"
     },
     {
@@ -142,7 +142,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(go_app_http_requests_total{service_name=~\"workshop.*\"})",
+          "expr": "sum(rate(go_app_http_requests_total[5m]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -234,7 +234,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(go_app_http_requests_total{service_name=~\"workshop.*\", status_code=~\"5..\"})",
+          "expr": "sum(rate(go_app_http_requests_total{service_name=~\"workshop.*\", status_code=~\"5..\"}[5m]))\n/\nsum(rate(go_app_http_requests_total{service_name=~\"workshop.*\"}[5m]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -330,7 +330,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(go_app_http_request_duration_seconds_sum{service_name=~\"workshop.*\", path!=\"/favicon.ico\"}) by (path)",
+          "expr": "sum(\nrate(go_app_http_request_duration_seconds_sum{service_name=~\"workshop.*\", path!=\"/favicon.ico\"}[5m])\n/\nrate(go_app_http_request_duration_seconds_count{service_name=~\"workshop.*\", path!=\"/favicon.ico\"}[5m])\n) by (path)",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -348,10 +348,49 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
+        "h": 6,
         "w": 24,
         "x": 0,
         "y": 17
+      },
+      "id": 11,
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "direction": "backward",
+          "editorMode": "builder",
+          "expr": "{service_name=~\"workshop.*\"} |= `order`",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Rideshare order logs",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "uid": "loki"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 23
       },
       "id": 10,
       "options": {
@@ -370,46 +409,7 @@
         {
           "direction": "backward",
           "editorMode": "builder",
-          "expr": "{service_name=~\"workshop.*\"} |= ``",
-          "queryType": "range",
-          "refId": "A"
-        }
-      ],
-      "title": "Rideshare order request logs",
-      "type": "logs"
-    },
-    {
-      "datasource": {
-        "uid": "loki"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 22
-      },
-      "id": 3,
-      "options": {
-        "dedupStrategy": "none",
-        "enableInfiniteScrolling": false,
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": false,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "direction": "backward",
-          "editorMode": "builder",
-          "expr": "{service_name=~\"workshop.*\"} |= ``",
+          "expr": "{service_name=~\"workshop.*\"} |= `error`",
           "queryType": "range",
           "refId": "A"
         }
@@ -451,10 +451,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 29
       },
       "id": 9,
       "options": {
@@ -566,7 +566,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 37
       },
       "id": 7,
       "options": {
@@ -594,45 +594,6 @@
       ],
       "title": "Alert rule (5XX errors)",
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "tempo",
-        "uid": "tempo"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 14,
-        "w": 24,
-        "x": 0,
-        "y": 42
-      },
-      "id": 11,
-      "options": {
-        "edges": {},
-        "layoutAlgorithm": "layered",
-        "nodes": {},
-        "zoomMode": "cooperative"
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "tempo",
-            "uid": "tempo"
-          },
-          "limit": 20,
-          "metricsQueryType": "range",
-          "queryType": "serviceMap",
-          "refId": "A",
-          "tableType": "traces"
-        }
-      ],
-      "title": "Service graph",
-      "type": "nodeGraph"
     }
   ],
   "preload": false,
@@ -648,7 +609,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Rideshare Example",
-  "uid": "rideshare",
+  "title": "Rideshare Example (Reference)",
+  "uid": "rideshare_finished",
   "version": 8
 }

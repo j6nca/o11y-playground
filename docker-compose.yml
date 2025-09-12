@@ -1,48 +1,88 @@
 name: workshop
 services:
-  # The example Go "store" applications that we will observe
-  store-api:
-    build:
-      context: ./store-api
-      dockerfile: Dockerfile
-    # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
-    # image: ghcr.io/j6nca/o11y-playground-store-api:main
-    container_name: store-api
-    ports:
-      - "8080:8080"
-    environment:
-      - OTEL_SERVICE_NAME=store-api
-      # Sending store-api traces and profiling to alloy (OTEL collector)
-      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
-      - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
-      - LOKI_SERVER_ADDRESS=alloy:4317
-    deploy:
-      resources:
-        limits:
-          cpus: "0.1"
-          memory: 512M
-    depends_on:
-      - alloy
+  # # The example Go "store" applications that we will observe
+  # store-api:
+  #   build:
+  #     context: ./store-api
+  #     dockerfile: Dockerfile
+  #   # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
+  #   # image: ghcr.io/j6nca/o11y-playground-store-api:main
+  #   container_name: store-api
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - OTEL_SERVICE_NAME=store-api
+  #     # Sending store-api traces and profiling to alloy (OTEL collector)
+  #     - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
+  #     - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
+  #     - LOKI_SERVER_ADDRESS=alloy:4317
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "0.1"
+  #         memory: 512M
+  #   depends_on:
+  #     - alloy
 
-  store-client:
-    build:
-      context: ./store-client
-      dockerfile: Dockerfile
-    # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
-    # image: ghcr.io/j6nca/o11y-playground-store-client:main
-    container_name: store-client
+  # store-client:
+  #   build:
+  #     context: ./store-client
+  #     dockerfile: Dockerfile
+  #   # # Uncomment this and comment out the 'build' block above, to use pre-built image if experiencing dependency issues
+  #   # image: ghcr.io/j6nca/o11y-playground-store-client:main
+  #   container_name: store-client
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     - OTEL_SERVICE_NAME=store-client
+  #     # Sending store-client traces and profiling to alloy (OTEL collector)
+  #     - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
+  #     - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
+  #     - LOKI_SERVER_ADDRESS=alloy:4317
+  #     - API_SERVER_ADDRESS=http://store-api:8080/products
+  #   depends_on:
+  #     - alloy
+  #     - store-api
+
+  us-east:
     ports:
-      - "8081:8081"
+      - "5050:5000"
+    environment: &env
+      PYROSCOPE_SERVER_ADDRESS: http://alloy:4040
+      OTLP_URL: alloy:4318
+      OTLP_INSECURE: 1
+      DEBUG_LOGGER: 1
+      REGION: us-east
+    build:
+      context: .
+  eu-north:
+    ports:
+      - "5051:5000"
     environment:
-      - OTEL_SERVICE_NAME=store-client
-      # Sending store-client traces and profiling to alloy (OTEL collector)
-      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=alloy:4317
-      - PYROSCOPE_SERVER_ADDRESS=http://alloy:4040
-      - LOKI_SERVER_ADDRESS=alloy:4317
-      - API_SERVER_ADDRESS=http://store-api:8080/products
-    depends_on:
-      - alloy
-      - store-api
+      <<: *env
+      REGION: eu-north
+    build:
+      context: .
+  ap-south:
+    ports:
+      - "5000"
+    environment:
+      <<: *env
+      REGION: ap-south
+    build:
+      context: .
+
+  load-generator:
+    environment:
+      <<: *env
+    build:
+      context: .
+      dockerfile: Dockerfile.load-generator
+    command:
+      - ./loadgen
+      - http://us-east:5000
+      - http://eu-north:5000
+      - http://ap-south:5000
 
   # Add alertmanager for alert routing (so we can see alerts from vmalert)
   alertmanager:
@@ -118,7 +158,7 @@ services:
     container_name: vmalert
     command:
       - -rule=/etc/vmalert/vmalert-rules.yml
-      - -datasource.url=http://vmselect:8481/
+      - -datasource.url=http://vmselect:8481/select/0/prometheus
       - -evaluationInterval=10s
       - -notifier.url=http://alertmanager:9093
     volumes:
@@ -140,17 +180,11 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_FEATURE_TOGGLES_ENABLE=flameGraph traceqlSearch traceQLStreaming correlations metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails
+      - GF_FEATURE_TOGGLES_ENABLE=flameGraph traceqlSearch traceQLStreaming correlations metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails tracesEmbeddedFlameGraph
       # - GF_INSTALL_PLUGINS=grafana-lokiexplore-app,grafana-exploretraces-app,grafana-pyroscope-app
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=true
-    # depends_on:
-    #   - victoriametrics
-    #   - loki
-    #   - tempo
-    #   - pyroscope
-    #   - vmalert
     healthcheck:
       test:
         [
@@ -184,6 +218,7 @@ services:
       - "55680:55680"
       - "55681:55681"
       - "14250:14250"
+      - "14268:14268"
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - "./tempo/tempo.yaml:/etc/tempo.yaml"
@@ -191,9 +226,15 @@ services:
   pyroscope:
     image: grafana/pyroscope:1.13.5
     container_name: pyroscope
+    command: ["-config.file=/etc/pyroscope.yml"]
+    environment:
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_SAMPLER_PARAM: "1"
+      JAEGER_ENDPOINT: http://tempo:14268/api/traces
+    volumes:
+      - ./pyroscope/pyroscope.yml:/etc/pyroscope.yml
     ports:
       - "4040:4040"
-    command: ["server"]
 
   # Grafana Alloy batches and processes traces sent to it, generating
   # auto-logs from those traces.
@@ -207,7 +248,9 @@ services:
       - "12348:12348"
       - "6832:6832"
       - "55679:55679"
+      # OTLP GRPC
       - "4317:4317"
+      # OTLP HTTP
       - "4318:4318"
     expose:
       - "4040"
